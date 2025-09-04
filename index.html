@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APSRTC Online Bus Booking</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .seat-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; max-width: 300px; margin: 0 auto; }
+        .seat { width: 40px; height: 40px; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .selected { background-color: #38a169; color: white; }
+        .occupied { background-color: #e53e3e; color: white; cursor: not-allowed; }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <header class="bg-blue-600 text-white p-4 shadow-lg">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold">APSRTC Online Booking</h1>
+            <nav><a href="#" class="hover:underline">Home</a> | <a href="#" class="hover:underline">My Bookings</a></nav>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-6">
+        <section class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <h2 class="text-xl font-semibold mb-4">Search Buses</h2>
+            <form id="search-form" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">From</label>
+                    <select id="from" class="w-full p-2 border rounded">
+                        <option>Select Origin</option>
+                        <option>Vijayawada</option>
+                        <option>Hyderabad</option>
+                        <option>Tirupati</option>
+                        <option>Visakhapatnam</option>
+                        <option>Anantapur</option>
+                        <option>Kakinada</option>
+                        <option>Rajahmundry</option>
+                        <option>Nellore</option>
+                        <option>Chittoor</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">To</label>
+                    <select id="to" class="w-full p-2 border rounded">
+                        <option>Select Destination</option>
+                        <option>Vijayawada</option>
+                        <option>Hyderabad</option>
+                        <option>Tirupati</option>
+                        <option>Visakhapatnam</option>
+                        <option>Anantapur</option>
+                        <option>Kakinada</option>
+                        <option>Rajahmundry</option>
+                        <option>Nellore</option>
+                        <option>Chittoor</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Date</label>
+                    <input id="date" type="date" class="w-full p-2 border rounded" value="2023-10-01">
+                </div>
+                <div class="flex items-end">
+                    <button type="submit" class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700">Search</button>
+                </div>
+            </form>
+        </section>
+
+        <section id="bus-list" class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <h2 class="text-xl font-semibold mb-4">Available Buses</h2>
+            <div id="buses" class="space-y-4"></div>
+        </section>
+
+        <section id="seat-selection" class="bg-white p-6 rounded-lg shadow-md mb-6 hidden">
+            <h2 class="text-xl font-semibold mb-4">Select Seats</h2>
+            <div id="seat-grid" class="seat-grid"></div>
+            <button id="confirm-seats" class="mt-4 bg-green-600 text-white p-2 rounded hover:bg-green-700">Confirm Seats</button>
+        </section>
+
+        <section id="booking-form" class="bg-white p-6 rounded-lg shadow-md mb-6 hidden">
+            <h2 class="text-xl font-semibold mb-4">Passenger Details</h2>
+            <form id="passenger-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Name</label>
+                    <input type="text" id="passenger-name" class="w-full p-2 border rounded" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Age</label>
+                    <input type="number" id="passenger-age" class="w-full p-2 border rounded" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Gender</label>
+                    <select id="passenger-gender" class="w-full p-2 border rounded">
+                        <option>Male</option>
+                        <option>Female</option>
+                        <option>Other</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700">Proceed to Payment</button>
+            </form>
+        </section>
+
+        <section id="payment" class="bg-white p-6 rounded-lg shadow-md hidden">
+            <h2 class="text-xl font-semibold mb-4">Payment Options</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button class="payment-btn p-4 border rounded hover:bg-gray-50" data-method="card">Credit/Debit Card</button>
+                <button class="payment-btn p-4 border rounded hover:bg-gray-50" data-method="upi">UPI</button>
+                <button class="payment-btn p-4 border rounded hover:bg-gray-50" data-method="netbanking">Net Banking</button>
+                <button class="payment-btn p-4 border rounded hover:bg-gray-50" data-method="wallet">Wallet</button>
+            </div>
+            <button id="pay" class="mt-4 w-full bg-green-600 text-white p-2 rounded hover:bg-green-700 hidden">Pay Now</button>
+        </section>
+    </main>
+
+    <script>
+        // Sample bus data expanded to include more buses in Andhra Pradesh
+        const buses = [
+            {
+                name: "Garuda Express",
+                number: "AP01-1234",
+                platform: "5",
+                timing: "08:00 AM",
+                date: "2023-10-01",
+                driver: "Ravi Kumar",
+                driverPhoto: "https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/27adbf16-9bc3-4f45-a683-d05698a005b6.png",
+                from: "Hyderabad",
+                to: "Vijayawada",
+                seats: ["A1", "A2", "A3", "B1", "B2"].concat(Array.from({length: 45}, (_, i) => `${String.fromCharCode(65 + Math.floor(i/5))}${i%5 + 1}`))
+            },
+            {
+                name: "Andhra AC Sleeper",
+                number: "AP02-3456",
+                platform: "3",
+                timing: "10:30 AM",
+                date: "2023-10-01",
+                driver: "Suresh Reddy",
+                driverPhoto: "https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/74fa9e3e-869e-4fad-9d71-567ae5392ee0.png",
+                from: "Visakhapatnam",
+                to: "Hyderabad",
+                seats: Array.from({length: 50}, (_, i) => `${String.fromCharCode(65 + Math.floor(i/5))}${i%5 + 1}`)
+            },
+            {
+                name: "Tirumala Volvo",
+                number: "AP03-7890",
+                platform: "7",
+                timing: "02:00 PM",
+                date: "2023-10-01",
+                driver: "Anil Patel",
+                driverPhoto: "https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/0a82fc86-0e71-4c57-b754-bce6aa64ff4b.png",
+                from: "Tirupati",
+                to: "Chittoor",
+                seats: Array.from({length: 48}, (_, i) => `${String.fromCharCode(65 + Math.floor(i/5))}${i%5 + 1}`)
+            },
+            {
+                name: "Godavari Special",
+                number: "AP04-1122",
+                platform: "2",
+                timing: "06:45 PM",
+                date: "2023-10-01",
+                driver: "Rajesh Gupta",
+                driverPhoto: "https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/4373d289-2e79-4ccc-95c1-42185ca50623.png",
+                from: "Rajahmundry",
+                to: "Anantapur",
+                seats: Array.from({length: 52}, (_, i) => `${String.fromCharCode(65 + Math.floor(i/5))}${i%5 + 1}`)
+            },
+            {
+                name: "Nellore Express",
+                number: "AP05-3344",
+                platform: "4",
+                timing: "09:15 AM",
+                date: "2023-10-01",
+                driver: "Kishore Tiwari",
+                driverPhoto: "https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/30775b56-d041-4dee-821e-7677e76866e8.png",
+                from: "Nellore",
+                to: "Kakinada",
+                seats: Array.from({length: 50}, (_, i) => `${String.fromCharCode(65 + Math.floor(i/5))}${i%5 + 1}`)
+            },
+            {
+                name: "Chennai Link",
+                number: "AP06-5566",
+                platform: "6",
+                timing: "11:00 AM",
+                date: "2023-10-01",
+                driver: "Venkat Rao",
+                driverPhoto: "https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/0ae2e9c9-3f7e-43c8-8603-331f844aa692.png",
+                from: "Chittoor",
+                to: "Vijayawada",
+                seats: Array.from({length: 50}, (_, i) => `${String.fromCharCode(65 + Math.floor(i/5))}${i%5 + 1}`)
+            }
+        ];
+
+        let selectedBus = null;
+        let selectedSeats = [];
+
+        document.getElementById('search-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const from = document.getElementById('from').value;
+            const to = document.getElementById('to').value;
+            const date = document.getElementById('date').value;
+            displayBuses(from, to, date);
+        });
+
+        function displayBuses(from, to, date) {
+            const container = document.getElementById('buses');
+            container.innerHTML = "";
+            buses.filter(bus => bus.from === from && bus.to === to && bus.date === date).forEach((bus, index) => {
+                const busDiv = document.createElement('div');
+                busDiv.className = "p-4 border rounded hover:bg-gray-50 cursor-pointer";
+                busDiv.innerHTML = `
+                    <div class="flex justify-between">
+                        <div>
+                            <h3 class="text-lg font-semibold">${bus.name} (${bus.number})</h3>
+                            <p>Platform: ${bus.platform} | Time: ${bus.timing} | Date: ${bus.date}</p>
+                            <p>From: ${bus.from} To: ${bus.to}</p>
+                            <p>Driver: ${bus.driver}</p>
+                            <img src="${bus.driverPhoto}" alt="Portrait photo of bus driver ${bus.driver}, a middle-aged professional in official APSRTC uniform with name badge, friendly expression, and Andhra Pradesh bus depot background showing typical south Indian weather and urban setting" class="w-16 h-16 rounded-full" />
+                        </div>
+                        <button class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 select-bus" data-bus-id="${index}">Select</button>
+                    </div>
+                `;
+                container.appendChild(busDiv);
+            });
+            document.querySelectorAll('.select-bus').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const busIndex = parseInt(e.target.getAttribute('data-bus-id'));
+                    selectedBus = buses.filter(bus => bus.from === from && bus.to === to && bus.date === date)[busIndex];
+                    document.getElementById('bus-list').classList.add('hidden');
+                    document.getElementById('seat-selection').classList.remove('hidden');
+                    displaySeats(selectedBus.seats);
+                });
+            });
+        }
+
+        function displaySeats(seats) {
+            const grid = document.getElementById('seat-grid');
+            grid.innerHTML = "";
+            seats.forEach(seat => {
+                const seatDiv = document.createElement('div');
+                seatDiv.className = "seat";
+                seatDiv.textContent = seat;
+                if (Math.random() > 0.7) seatDiv.classList.add('occupied');
+                seatDiv.addEventListener('click', () => selectSeat(seatDiv, seat));
+                grid.appendChild(seatDiv);
+            });
+        }
+
+        function selectSeat(element, seat) {
+            if (element.classList.contains('occupied')) return;
+            element.classList.toggle('selected');
+            if (selectedSeats.includes(seat)) {
+                selectedSeats = selectedSeats.filter(s => s !== seat);
+            } else {
+                selectedSeats.push(seat);
+            }
+        }
+
+        document.getElementById('confirm-seats').addEventListener('click', () => {
+            if (selectedSeats.length === 0) return alert('Select at least one seat');
+            document.getElementById('seat-selection').classList.add('hidden');
+            document.getElementById('booking-form').classList.remove('hidden');
+        });
+
+        document.getElementById('passenger-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            document.getElementById('booking-form').classList.add('hidden');
+            document.getElementById('payment').classList.remove('hidden');
+        });
+
+        document.querySelectorAll('.payment-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.getElementById('pay').classList.remove('hidden');
+            });
+        });
+
+        document.getElementById('pay').addEventListener('click', () => {
+            alert(`Booking confirmed!\nBus: ${selectedBus.name} (${selectedBus.number})\nFrom: ${selectedBus.from} To: ${selectedBus.to}\nDate: ${selectedBus.date}\nTime: ${selectedBus.timing}\nSeats: ${selectedSeats.join(', ')}\nDriver: ${selectedBus.driver}`);
+        });
+    </script>
+</body>
+</html>
+</content>
+</create_file>
